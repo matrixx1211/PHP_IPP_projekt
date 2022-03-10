@@ -1,11 +1,11 @@
 <?php
 class Arguments
 {
-	public $arguments;
-	public $short;
-	public $long;
+	public Array $arguments;
+	public String $short;
+	public Array $long;
 
-	public function __construct(String $shortopts = "", Array $longopts = array())
+	public function __construct(String $shortopts = "", array $longopts = array())
 	{
 		$this->short = $shortopts;
 		$this->long = $longopts;
