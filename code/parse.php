@@ -20,10 +20,10 @@ $analyzator->read_to_array();
 $analyzator->lex_check();
 
 // Syntaktická analýza
-$analyzator->syn_check();
+//$analyzator->syn_check();
 
 // Výpis XML
-$analyzator->xml_print();
+//$analyzator->xml_print();
 
 // Vrací návratový kód
 exit(SUCCESS);

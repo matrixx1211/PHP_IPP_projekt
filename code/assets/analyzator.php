@@ -204,7 +204,7 @@ class Analyzator
 	{
 		// generování hlavičky
 		$this->xml_header();
-		// procházím pole a kontroluji lexikální chyby
+		// procházím pole a kontroluji syntaktické chyby
 		for ($i = 1; $i < count($this->data); $i++) {
 			switch ($this->data[$i][0]) {
 					// 0 argumentů
