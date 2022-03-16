@@ -46,6 +46,7 @@ class Analyzator
 			exit(INFDEX_ERROR);
 		}
 		// načítám řádky
+
 		while (($line = fgets($file)) != false) {
 			// pokud obsahuje komentář -> odstraním ho
 			if (str_contains($line, "#")) {
@@ -53,208 +54,71 @@ class Analyzator
 				$line = substr($line, 0, $hash_pos);
 			}
 			// všechny několikanásobné mezery nahradím za jednu
-			$line = preg_replace('/\s+/', ' ', $line);
-			if (!empty(trim($line))) {
-				// rozdění podle mezer
-				array_push($this->data, explode(" ", $line));
+			$line = trim(preg_replace('/\s+/', ' ', $line));
+			if (!empty($line)) {
+				$exploded_array = explode(" ", $line);
+				array_push($this->data, $exploded_array);
 			}
 		}
 	}
 
 	/**
-	 * funkce pro lexikální analýzu
+	 * funkce pro lexikální a syntaktickou analýzu
 	 *
-	 * Funkce kontroluje lexikální správnost zadaného vstupu.
+	 * Funkce kontroluje lexikální a syntaktickou správnost zadaného vstupu.
 	 **/
-	public function lex_check()
+	public function lex_syn_check()
 	{
 		// kontrola hlavičky
-		if ($this->data[0][0] != ".IPPcode22") {
+		if (strtoupper($this->data[0][0]) != ".IPPCODE22") {
 			fprintf(STDERR, "Header error: header not found on line 1!\n");
 			exit(HEADER_ERROR);
 		}
-
-		// procházím pole a kontroluji lexikální chyby
-		for ($i = 0; $i < count($this->data); $i++) {
-			$line_length = count($this->data[$i]);
-			for ($j = 0; $j < $line_length; $j++) {
-				if ($i == 0) $j++;
-				switch (strtoupper($this->data[$i][$j])) {
-						// příkazy
-					case 'MOVE':
-					case 'CREATEFRAME':
-					case 'PUSHFRAME':
-					case 'POPFRAME':
-					case 'DEFVAR':
-
-					case 'RETURN':
-					case 'PUSHS':
-					case 'POPS':
-					case 'ADD':
-					case 'SUB':
-					case 'MUL':
-					case 'DIV':
-					case 'IDIV':
-					case 'LT':
-					case 'GT':
-					case 'EQ':
-					case 'AND':
-					case 'OR':
-					case 'NOT':
-					case 'INT2CHAR':
-					case 'STRI2INT':
-					case 'READ':
-					case 'WRITE':
-					case 'CONCAT':
-					case 'STRLEN':
-					case 'GETCHAR':
-					case 'SETCHAR':
-					case 'TYPE':
-
-					case 'EXIT':
-					case 'DPRINT':
-					case 'BREAK':
-						break;
-						// příkazy, kde může být label
-					case 'CALL':
-					case 'LABEL':
-					case 'JUMP':
-					case 'JUMPIFEQ':
-					case 'JUMPIFNEQ':
-						$j++;
-						break;
-						// datové typy
-					case 'INT':
-					case 'BOOL':
-					case 'STRING':
-					case 'NIL':
-						break;
-
-
-					default:
-						// pokud je prázdný pole -> odstranit
-						if (empty($this->data[$i][$j]) && $this->data[$i][$j] != '0' && $this->data[$i][$j] != 0) {
-							array_splice($this->data[$i], $j, 1);
-							$line_length = count($this->data[$i]);
-						} else {
-							if (str_contains($this->data[$i][$j], "@") == true) {
-								$at_pos = strpos($this->data[$i][$j], "@");
-
-								$len = strlen($this->data[$i][$j]);
-								$before_at = substr($this->data[$i][$j], 0, $at_pos);
-								$after_at = substr($this->data[$i][$j], $at_pos + 1);
-
-								if ((strlen($this->data[$i][$j]) - 1) == $at_pos) {
-									fprintf(STDERR, "Lexical error: after \"@\" is nothing!\n");
-									exit(LEXSYN_ERROR);
-								}
-
-								switch (strtoupper($before_at)) {
-									case 'INT':
-									case 'BOOL':
-									case 'STRING':
-									case 'NIL':
-										break;
-									case 'TF':
-									case 'LF':
-									case 'GF':
-										for ($l = 0; $l < strlen($after_at); $l++) {
-											if (!($after_at[$l] == "_" ||
-												$after_at[$l] == "-" ||
-												$after_at[$l] == "$" ||
-												$after_at[$l] == "&" ||
-												$after_at[$l] == "%" ||
-												$after_at[$l] == "*" ||
-												$after_at[$l] == "!" ||
-												$after_at[$l] == "?" ||
-												ctype_alnum($after_at[$l]))) {
-												fprintf(STDERR, "Lexical error: variable contains invalid character: \"%s\"!\n", $after_at[$l]);
-												exit(LEXSYN_ERROR);
-											}
-										}
-										break;
-
-									default:
-										// neplatný znak 
-										fprintf(STDERR, "Lexical error: in word \"%s\" probably before \"@\"!\n", $this->data[$i][$j]);
-										exit(LEXSYN_ERROR);
-										break;
-								}
-								$at_array = explode("@", $this->data[$i][$j]);
-								$this->data[$i][$j] = $at_array;
-							} else {
-								// neplatný znak 
-								fprintf(STDERR, "Lexical error: in OPCODE \"%s\"!\n", $this->data[$i][$j]);
-								exit(LEXSYN_ERROR);
-							}
-						}
-						break;
-				}
-			}
-		}
-		//print_r($this->data); //!debug
-	}
-
-	/**
-	 * funkce pro syntaktickou analýzu
-	 *
-	 * Funkce kontroluje syntaktickou správnost zadaného vstupu.
-	 **/
-	public function syn_check()
-	{
 		// generování hlavičky
 		$this->xml_header();
-		// procházím pole a kontroluji syntaktické chyby
+
+		// procházím pole a kontroluji lexikální a syntaktické chyby
 		for ($i = 1; $i < count($this->data); $i++) {
-			switch ($this->data[$i][0]) {
+			switch (strtoupper($this->data[$i][0])) {
 					// 0 argumentů
 				case 'CREATEFRAME':
 				case 'PUSHFRAME':
 				case 'POPFRAME':
 				case 'RETURN':
 				case 'BREAK':
+					$this->arg_count_check($this->data[$i], 0);
+					// výpis
 					$this->xml_instruction($this->data[$i][0]);
 					break;
 
-					// 1 argument -- var / symbol
+					// 1 argument -- var / symb
 				case 'DEFVAR': // var
-				case 'PUSHS': // symbol
+				case 'PUSHS': // symb
 				case 'POPS': // var 
 				case 'WRITE': // symb
 				case 'EXIT': // symb
 				case 'DPRINT': // symb
-					if (is_array($this->data[$i][1])) {
-						$type1 = strtoupper($this->data[$i][1][0]);
-						$arg1 = $this->data[$i][1][0] . "@" . $this->data[$i][1][1];
-						$arg1_type = "";
-						if ($this->data[$i][0] == "DEFVAR" || $this->data[$i][0] == "POPS") {
-							if ($type1 == "LF" || $type1 == "GF" || $type1 == "TF") {
-								$arg1_type = "var";
-								$this->xml_instruction($this->data[$i][0], $arg1, $arg1_type);
-							} else {
-								fprintf(STDERR, "Syntax error: expected <var> but get \"%s\"!\n", $this->data[$i][1]);
-								exit(LEXSYN_ERROR);
-							}
-						} else {
-							if ($type1 == "LF" || $type1 == "GF" || $type1 == "TF") {
-								fprintf(STDERR, "Syntax error: expected <var> but get \"%s\"!\n", $this->data[$i][1]);
-								exit(LEXSYN_ERROR);
-							} else {
-								$arg1_type = $this->data[$i][1][0];
-								$this->xml_instruction($this->data[$i][0],  $this->data[$i][1][1] . "\0", $arg1_type);
-							}
+					$this->arg_count_check($this->data[$i], 1);
+					// argument 1
+					$arg1_array = $this->is_var_or_symb($this->data[$i][1]);
+					if ($this->data[$i][0] == "DEFVAR" || $this->data[$i][0] == "POPS") {
+						if ($arg1_array[0] != "var") {
+							fprintf(STDERR, "Syntax error: expected \"<var>\", but get \"%s\" in \"%s\".\n", $arg1_array[0], $this->data[$i][1]);
+							exit(LEXSYN_ERROR);
 						}
-					} else {
-						fprintf(STDERR, "Syntax error: expected <var> or <symb> but get \"%s\"!\n", $this->data[$i][1]);
-						exit(LEXSYN_ERROR);
 					}
+					// výpis
+					$this->xml_instruction($this->data[$i][0], $arg1_array[0], $arg1_array[1]);
 					break;
 
 					// 1 argument -- label 
 				case 'CALL':
 				case 'LABEL':
 				case 'JUMP':
-					$this->xml_instruction($this->data[$i][0], $this->data[$i][1], "label");
+					$this->arg_count_check($this->data[$i], 1);
+					$this->is_label($this->data[$i][1]);
+					// výpis
+					$this->xml_instruction($this->data[$i][0], "label", $this->data[$i][1]);
 					break;
 
 					// 2 argumenty
@@ -263,44 +127,26 @@ class Analyzator
 				case 'READ': // var type
 				case 'STRLEN': // var symb
 				case 'TYPE': // var symb
-					if (is_array($this->data[$i][1])) {
-						$arg1 = $this->data[$i][1][0] . "@" . $this->data[$i][1][1];
-						$type1 = strtoupper($this->data[$i][1][0]);
-						$arg1_type = "";
-						if ($type1 == "LF" || $type1 == "GF" || $type1 == "TF")
-							$arg1_type = "var";
-						else {
-							fprintf(STDERR, "Syntax error: expected <var> but get \"%s\"!\n", $arg1);
-							exit(LEXSYN_ERROR);
-						}
-						if (is_array($this->data[$i][2])) {
-							$type2 = strtoupper($this->data[$i][2][0]);
-							$arg2 = $this->data[$i][2][0] . "@" . $this->data[$i][2][1];
-							$arg2_type = "";
-							if ($type2 == "LF" || $type2 == "GF" || $type2 == "TF") {
-								fprintf(STDERR, "Syntax error: <symb> but get \"%s\"!\n", $this->data[$i][1]);
-								exit(LEXSYN_ERROR);
-							} else {
-								$arg2_type = $this->data[$i][2][0];
-								$this->xml_instruction($this->data[$i][0], $arg1, $arg1_type, $this->data[$i][2][1]."\0", $arg2_type);
-							}
-						} else if ($this->data[$i][0] == "READ") {
-							if ($type1 == "int" || $type1 == "bool" || $type1 == "string") {
-								fprintf(STDERR, "Syntax error: expected <type> but get \"%s\"!\n", $this->data[$i][2]);
-								exit(LEXSYN_ERROR);
-							} else
-								$this->xml_instruction($this->data[$i][0], $arg1, $arg1_type, $this->data[$i][2], "type");
-						} else {
-							fprintf(STDERR, "Syntax error: expected <var> or <symb> but get \"%s\"!\n", $this->data[$i][1]);
-							exit(LEXSYN_ERROR);
-						}
-					} else {
-						fprintf(STDERR, "Syntax error: expected <var> or <symb> but get %s!\n", $this->data[$i][1]);
+					$this->arg_count_check($this->data[$i], 2);
+					// argument 1
+					$arg1_array = $this->is_var_or_symb($this->data[$i][1]);
+					if ($arg1_array[0] != "var") {
+						fprintf(STDERR, "Syntax error: expected \"<var>\", but get \"%s\" in \"%s\".\n", $arg1_array[0], $this->data[$i][1]);
 						exit(LEXSYN_ERROR);
+					}
+					// argument 2
+					if ($this->data[$i][0] == "READ") {
+						$this->is_type($this->data[$i][2]);
+						// výpis
+						$this->xml_instruction($this->data[$i][0], $arg1_array[0], $arg1_array[1], "type", $this->data[$i][2]);
+					} else {
+						$arg2_array = $this->is_var_or_symb($this->data[$i][2]);
+						// výpis
+						$this->xml_instruction($this->data[$i][0], $arg1_array[0], $arg1_array[1], $arg2_array[0], $arg2_array[1]);
 					}
 					break;
 
-					// 3 argumenty -- var / symbol
+					// 3 argumenty -- var symb symb
 				case 'ADD':
 				case 'SUB':
 				case 'MUL':
@@ -315,100 +161,193 @@ class Analyzator
 				case 'CONCAT':
 				case 'GETCHAR':
 				case 'SETCHAR':
-					if (is_array($this->data[$i][1])) {
-						$arg1 = $this->data[$i][1][0] . "@" . $this->data[$i][1][1];
-						$type1 = strtoupper($this->data[$i][1][0]);
-						$arg1_type = "";
-						if ($type1 == "LF" || $type1 == "GF" || $type1 == "TF")
-							$arg1_type = "var";
-						else {
-							fprintf(STDERR, "Syntax error: expected <var> but get \"%s\"!\n", $arg1);
-							exit(LEXSYN_ERROR);
-						}
-						if (is_array($this->data[$i][2])) {
-							$type2 = strtoupper($this->data[$i][2][0]);
-							$arg2 = $this->data[$i][2][0] . "@" . $this->data[$i][2][1];
-							$arg2_type = "";
-							if ($type2 == "LF" || $type2 == "GF" || $type2 == "TF") {
-								fprintf(STDERR, "Syntax error: expected <symb> but get \"%s\"!\n", $arg2);
-								exit(LEXSYN_ERROR);
-							} else 
-							{
-								$arg2_type = $this->data[$i][2][0];
-								$arg2 = $this->data[$i][2][1]."\0";
-							}
-							if (is_array($this->data[$i][3])) {
-								$type3 = strtoupper($this->data[$i][3][0]);
-								$arg3 = $this->data[$i][3][0] . "@" . $this->data[$i][3][1];
-								$arg3_type = "";
-								if ($type3 == "LF" || $type3 == "GF" || $type3 == "TF") {
-									fprintf(STDERR, "Syntax error: expected <symb> but get \"%s\"!\n", $arg3);
-									exit(LEXSYN_ERROR);
-								} else {
-									$arg3_type = $this->data[$i][3][0];
-									$this->xml_instruction($this->data[$i][0], $arg1, $arg1_type, $arg2, $arg2_type, $this->data[$i][3][1]."\0", $arg3_type);
-								}
-							} else {
-								fprintf(STDERR, "Syntax error: expected <var> or <symb> but get \"%s\"!\n", $this->data[$i][1]);
-								exit(LEXSYN_ERROR);
-							}
-						} else {
-							fprintf(STDERR, "Syntax error: expected <var> or <symb> but get \"%s\"!\n", $this->data[$i][1]);
-							exit(LEXSYN_ERROR);
-						}
-					} else {
-						fprintf(STDERR, "Syntax error: expected <var> or <symb> but get %s!\n", $this->data[$i][1]);
+					$this->arg_count_check($this->data[$i], 3);
+					// argument 1
+					$arg1_array = $this->is_var_or_symb($this->data[$i][1]);
+					if ($arg1_array[0] != "var") {
+						fprintf(STDERR, "Syntax error: expected \"<var>\", but get \"%s\" in \"%s\".\n", $arg1_array[0], $this->data[$i][1]);
 						exit(LEXSYN_ERROR);
 					}
+					$arg2_array = $this->is_var_or_symb($this->data[$i][2]);
+					$arg3_array = $this->is_var_or_symb($this->data[$i][3]);
+					// výpis
+					$this->xml_instruction($this->data[$i][0], $arg1_array[0], $arg1_array[1], $arg2_array[0], $arg2_array[1], $arg3_array[0], $arg3_array[1]);
 					break;
 
 
-					// 3 argumenty -- label
+					// 3 argumenty -- label symb symb
 				case 'JUMPIFEQ':
 				case 'JUMPIFNEQ':
-					if (ctype_alnum($this->data[$i][1])) {
-						$arg1 = $this->data[$i][1];
-						$arg1_type = "label";
-						if (is_array($this->data[$i][2])) {
-							$type2 = strtoupper($this->data[$i][2][0]);
-							$arg2 = $this->data[$i][2][0] . "@" . $this->data[$i][2][1];
-							$arg2_type = "";
-							if ($type2 == "LF" || $type2 == "GF" || $type2 == "TF") {
-								fprintf(STDERR, "Syntax error: expected <symb> but get \"%s\"!\n", $arg2);
-								exit(LEXSYN_ERROR);
-							} else $arg2_type = $this->data[$i][2][0];
-
-							if (is_array($this->data[$i][3])) {
-								$type3 = strtoupper($this->data[$i][3][0]);
-								$arg3 = $this->data[$i][3][0] . "@" . $this->data[$i][3][1];
-								$arg3_type = "";
-								if ($type3 == "LF" || $type3 == "GF" || $type3 == "TF") {
-									fprintf(STDERR, "Syntax error: expected <symb> but get \"%s\"!\n", $arg3);
-									exit(LEXSYN_ERROR);
-								} else $arg3_type = $this->data[$i][3][0];
-								$this->xml_instruction($this->data[$i][0], $arg1, $arg1_type, $arg2, $arg2_type, $arg3, $arg3_type);
-							} else {
-								fprintf(STDERR, "Syntax error: expected <var> or <symb> but get \"%s\"!\n", $this->data[$i][1]);
-								exit(LEXSYN_ERROR);
-							}
-						} else {
-							fprintf(STDERR, "Syntax error: expected <var> or <symb> but get \"%s\"!\n", $this->data[$i][1]);
-							exit(LEXSYN_ERROR);
-						}
-					} else {
-						fprintf(STDERR, "Syntax error: expected <var> or <symb> but get %s!\n", $this->data[$i][1]);
-						exit(LEXSYN_ERROR);
-					}
+					$this->arg_count_check($this->data[$i], 3);
+					// argument 1
+					$this->is_label($this->data[$i][1]);
+					// argument 2
+					$arg2_array = $this->is_var_or_symb($this->data[$i][2]);
+					// argument 3
+					$arg3_array = $this->is_var_or_symb($this->data[$i][3]);
+					// výpis
+					$this->xml_instruction($this->data[$i][0], "label", $this->data[$i][1], $arg2_array[0], $arg2_array[1], $arg3_array[0], $arg3_array[1]);
 					break;
-
+					// není to legální OPCODE
 				default:
-					echo "error ";
-					print_r($this->data[$i]);
+					fprintf(STDERR, "Lexical error: invalid OPCODE.");
+					exit(LEXSYN_ERROR);
 					break;
 			}
 		}
+		//print_r($this->data); //!debug
 	}
 
+	/** 
+	 * funkce kontroluje jestli se jedná o var nebo symb
+	 * 
+	 * Funkce kontroluje, jestli se jedná o proměnnou nebo symbol.
+	 * Vrací pole s typem na indexu 0 a jeho argumentem na indexu 1.
+	 * 
+	 * @param String $var_or_symb Potenciální var nebo symb
+	 * @return Array
+	 **/
+	private function is_var_or_symb(string $var_or_symb)
+	{
+		if (str_contains($var_or_symb, "@")) {
+			$at_pos = strpos($var_or_symb, "@");
+			$len = strlen($var_or_symb);
+			// před @ nic
+			if ($at_pos == 0) {
+				fprintf(STDERR, "Lexical error: expected something before \"@\", but get nothing.\n");
+				exit(LEXSYN_ERROR);
+			}
+			// za @ nic
+			if (($len - 1) == $at_pos) {
+				fprintf(STDERR, "Lexical error: expected something after \"@\", but get nothing.\n");
+				exit(LEXSYN_ERROR);
+			}
+			$before_at = substr($var_or_symb, 0, $at_pos);
+			$after_at = substr($var_or_symb, $at_pos + 1);
+			$return = array();
+			switch ($before_at) {
+				case 'TF':
+				case 'LF':
+				case 'GF':
+					if (preg_match("/^([_\-$&%*!?A-Za-z]([_\-$&%*!?A-Za-z0-9])*)/", $after_at) != 1) {
+						fprintf(STDERR, "Lexical error: variable \"%s\" contains invalid character/s.\n", $after_at);
+						exit(LEXSYN_ERROR);
+					}
+					array_push($return, "var");
+					array_push($return, $var_or_symb);
+					break;
+
+				case 'string':
+				case 'bool':
+				case 'int':
+				case 'nil':
+					// pokud se jedná o boolean
+					if ($before_at == "bool") {
+						if (!($after_at == "false" || $after_at == "true")) {
+							fprintf(STDERR, "Lexical error: expected \"true\" or \"false\", but get \"%s\".\n", $after_at);
+							exit(LEXSYN_ERROR);
+						}
+					}
+					// pokud se jedná o integer
+					if ($before_at == "int") {
+						if (preg_match("/^(?:[-|\+]?(0[xX])?[0-9a-fA-F]+|[-|\+]?\d+(?:\.\d+)?)$/", $after_at) != 1) {
+							fprintf(STDERR, "Lexical error: expected octal decimal or hexadecimal number, but get \"%s\".\n", $after_at);
+							exit(LEXSYN_ERROR);
+						}
+						if ($after_at == 0 || $after_at == '0')
+							$after_at .= "\0";
+					}
+					// pokud se jedná o nil
+					if ($before_at == "nil") {
+						if ($after_at != "nil") {
+							fprintf(STDERR, "Lexical error: expected \"nil\", but get \"%s\".\n", $after_at);
+							exit(LEXSYN_ERROR);
+						}
+					}
+					// pokud se jedná o string
+					if ($before_at == "string") {
+						if ($after_at == 0 || $after_at == '0')
+							$after_at .= "\0";
+					}
+					array_push($return, $before_at);
+					array_push($return, $after_at);
+					break;
+
+				default:
+					fprintf(STDERR, "Lexical error: expected frame or data type, but get \"%s\".\n", $before_at);
+					exit(LEXSYN_ERROR);
+					break;
+			}
+			return $return;
+		} else {
+			fprintf(STDERR, "Lexical error: expected <var> or <symb>, but get \"%s\".\n", $var_or_symb);
+			exit(LEXSYN_ERROR);
+		}
+	}
+
+	/**
+	 * funkce kontroluje jestli se jedná o label
+	 *
+	 * Funkce kontroluje, jestli se jedná o label a bere.
+	 * Jako parametr bere potenciální label.
+	 *
+	 * @param String $label Potenciální label
+	 **/
+	private function is_label(string $label)
+	{
+		if (preg_match("/^([_\-$&%*!?A-Za-z]([_\-$&%*!?A-Za-z0-9])*)/", $label) != 1) {
+			fprintf(STDERR, "Lexical error: label \"%s\" contains invalid character/s.\n", $label);
+			exit(LEXSYN_ERROR);
+		}
+	}
+
+	/**
+	 * funkce kontroluje jestli se jedná o typ
+	 *
+	 * Funkce kontroluje, jestli se jedná o typ.
+	 * Jako parametr bere potenciální typ.
+	 *
+	 * @param String $type Potenciální typ
+	 **/
+	private function is_type(string $type)
+	{
+		switch ($type) {
+			case 'int':
+			case 'string':
+			case 'bool':
+			case 'nil':
+				break;
+
+			default:
+				fprintf(STDERR, "Lexical error: invalid type \"%s\".\n", $type);
+				exit(LEXSYN_ERROR);
+				break;
+		}
+	}
+
+	/**
+	 * funkce kontroluje počet argumentů
+	 *
+	 * Funkce kontroluje, jestli zadaný počet argumentů je stejný jako počet očekávaných.
+	 * Jako parametry bere pole dat a očekávaný počet argumentů.
+	 *
+	 * @param Array $data Pole dat
+	 * @param Int $expected_count Očekávaný počet argumentů
+	 **/
+	private function arg_count_check(array $data, int $expected_count)
+	{
+		$count = count($data) - 1; // bez instrukce
+		if ($count != $expected_count) {
+			fprintf(STDERR, "Syntax error: expected \"%d\" argument/s for instruction \"%s\", but get \"%d\".\n", $expected_count, $data[0], $count);
+			exit(LEXSYN_ERROR);
+		}
+	}
+
+	/**
+	 * funkce generuje xml hlavičku
+	 *
+	 * Funkce generuje hlavičku pro xml soubor a počáteční tag program
+	 **/
 	private function xml_header()
 	{
 		$this->xml = xmlwriter_open_memory();
@@ -426,14 +365,29 @@ class Analyzator
 		xmlwriter_end_attribute($this->xml);
 	}
 
+	/**
+	 * funkce generuje xml pro instrukci
+	 *
+	 * Funkce generuje xml pro konkrétní instrukci.
+	 * Jako parametry bere instrukci a následně nula až tři 
+	 * argumenty včetně jejich typů.
+	 *
+	 * @param String $instruction Instrukce
+	 * @param ?String $arg1_type Typ argument 1
+	 * @param ?String $arg1 Argument 1
+	 * @param ?String $arg2_type Typ argument 2
+	 * @param ?String $arg2 Argument 2
+	 * @param ?String $arg3_type Typ argument 3
+	 * @param ?String $arg3 Argument 3
+	 **/
 	private function xml_instruction(
 		String $instruction,
-		?String $arg1 = "",
 		?String $arg1_type = "",
-		?String $arg2 = "",
+		?String $arg1 = "",
 		?String $arg2_type = "",
-		?String $arg3 = "",
-		?String $arg3_type = ""
+		?String $arg2 = "",
+		?String $arg3_type = "",
+		?String $arg3 = ""
 	) {
 		// Instrukce
 		xmlwriter_start_element($this->xml, "instruction");
@@ -487,6 +441,7 @@ class Analyzator
 	 * funkce vypíše xml na výstup
 	 *
 	 * Funkce vypíše na výstup zpracovaný IPPcode22 ve formátu XML.
+	 * 
 	 * @param String $output Výstupní soubor
 	 **/
 	public function xml_print(String $output_filename = "stdout")

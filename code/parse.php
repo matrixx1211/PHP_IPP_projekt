@@ -16,14 +16,11 @@ $args->test();
 $analyzator = new Analyzator();
 $analyzator->read_to_array();
 
-// Lexikální analýza
-$analyzator->lex_check();
-
-// Syntaktická analýza
-//$analyzator->syn_check();
+// Lexikální a syntaktická analýza
+$analyzator->lex_syn_check();
 
 // Výpis XML
-//$analyzator->xml_print();
+$analyzator->xml_print();
 
 // Vrací návratový kód
 exit(SUCCESS);
