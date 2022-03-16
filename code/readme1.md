@@ -1,23 +1,24 @@
-Implementační dokumentace k 1. úloze do IPP 2021/2022
+# Implementační dokumentace k 1. úloze do IPP 2021/2022
 Jméno a příjmení: Marek Bitomský
 Login: xbitom00 
-# 1. Analyzátor v php
-## 1.1. Soubor constants.php
+## 1. Analyzátor v php
+### 1.1. Soubor constants.php
 Tento soubor obsahuje pouze konstanty pro funkci *exit()*.
 
-## 1.2. Soubor arguments.php
+### 1.2. Soubor arguments.php
 Zde se nachází třída **Arguments**, která má 2 public metody *add_valid_arg()* a *test()*.
 1. Pomocí *add_valid_arg()* lze přidat parametry pro příkazovou řádku, které bude analyzátor akceptovat.
 2. Pomocí *test()* lze zkontrolovat argumenty příkazové řádky a následně podle nich upravit chování analyzátoru.
 
-## 1.3. Soubor analyzator.php
+### 1.3. Soubor analyzator.php
 Zde se nachází třída **Analyzator**, která má 3 public metody a 6 private metod pro zjednodušení kódu.
+
 **Public metody**
 1. Metoda *read_to_array()* načítá standardní vstup do pole.
 2. Metoda *lex_syn_check()* provádí lexikální a syntaktickou analýzu.
 3. Metoda *xml_print()* vypisuje xml na standardní výstup.
    
-**Private metody**
+**#Private metody**
 1. Metoda *is_var_or_symb()* kontroluje, jestli je zadaný parametr instrukce proměnná nebo symbol a vrací pole, které v sobě uchovává typ na indexu 0 a hodnotu na indexu 1 pro výpis. 
 2. Metoda *is_label()* kontroluje, jestli je zadaný parametr instrukce validní label.
 3. Metoda *is_type()* kontroluje, jestli je zadaný parametr instrukce typ.
