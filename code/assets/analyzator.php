@@ -250,8 +250,8 @@ class Analyzator
 					}
 					// pokud se jedná o integer
 					if ($before_at == "int") {
-						if (preg_match("/^(?:[-|\+]?(0[xX])?[0-9a-fA-F]+|[-|\+]?\d+(?:\.\d+)?)$/", $after_at) != 1) {
-							fprintf(STDERR, "Lexical error: expected octal decimal or hexadecimal number, but get \"%s\".\n", $after_at);
+						if (preg_match("/^(?:[-|\+]?(0[xX])[0-9a-fA-F]+|[-|\+]?\d+(?:\d+)?|[-|\+]?(0[oO])[0-7]+)$/", $after_at) != 1) {
+							fprintf(STDERR, "Lexical error: expected octal, decimal or hexadecimal number, but get \"%s\".\n", $after_at);
 							exit(LEXSYN_ERROR);
 						}
 						if ($after_at == 0 || $after_at == '0')
@@ -352,7 +352,8 @@ class Analyzator
 	{
 		$this->xml = xmlwriter_open_memory();
 		xmlwriter_set_indent($this->xml, 1);
-		$res = xmlwriter_set_indent_string($this->xml, "\t");
+		xmlwriter_set_indent_string($this->xml, "\t");
+		xmlwriter_set_indent($this->xml, true);
 
 		xmlwriter_start_document($this->xml, '1.0', 'UTF-8');
 
@@ -432,8 +433,9 @@ class Analyzator
 			xmlwriter_text($this->xml, $arg3); 				// >$arg3
 			xmlwriter_end_element($this->xml); 				// </arg3>
 		}
-
+		
 		// Konec instrukce
+		//xmlwriter_full_end_element($this->xml);
 		xmlwriter_end_element($this->xml);
 	}
 
