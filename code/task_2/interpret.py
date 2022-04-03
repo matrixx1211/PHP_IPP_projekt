@@ -92,21 +92,22 @@ def file_handler(filename):
 
 
 def start_element_handler(name, attrs):
+    global program
+    global order
+    global command
     # Funkce, která zpracovává počáteční elementy z xml dat
     if name == "program":
-        global program
         program = True
         if (attrs['language'].upper() != "IPPCODE22"):
             print("Error: Header doesnt exist.", file=sys.stderr)
             exit(CONST.XML_UNEXPECTED_STRUCT)
     if name == "instruction":
-        global order
-        if (str(order) == attrs['order']):
+        command["command"] = attrs["opcode"]
+        if (str(order) == attrs["order"]):
             order = order + 1
         else:
             print("Error: Unexpected order number.", file=sys.stderr)
             exit(CONST.XML_UNEXPECTED_STRUCT)
-    global command
     if name == "arg1":
         command["arg1"] = attrs
     if name == "arg2":
@@ -114,15 +115,6 @@ def start_element_handler(name, attrs):
     if name == "arg3":
         command["arg3"] = attrs
     print('Start element:', name, attrs)
-
-
-def end_element_handler(name):
-    # Funkce, která zpracovává koncové elementy z xml dat
-    # vlastně nic nezpracovává jen dává vědet, který element byl ukončen
-    if (name == "instruction"):
-        print(command)
-    # pass
-    # print('End element:', name) #!debug
 
 
 def char_data_handler(data):
@@ -135,9 +127,40 @@ def char_data_handler(data):
             command["arg2_value"] = data
         elif command["arg2_value"] and not command["arg3_value"]:
             command["arg3_value"] = data
-        else: 
-            print("Error: ") #TODO
+        else:
+            print("Error: ")  # TODO
         print('Character data:', repr(data))
+
+
+def end_element_handler(name):
+    global command
+    # Funkce, která zpracovává koncové elementy z xml dat
+    # vlastně nic nezpracovává jen dává vědet, který element byl ukončen
+    if (name == "instruction"):
+        print(command)
+        if (command["command"].upper() == "WRITE"):
+            print(command["arg1_value"])
+        elif (command["command"].upper() == ""):
+            pass
+        elif (command["command"].upper() == ""):
+            pass
+        elif (command["command"].upper() == ""):
+            pass
+        elif (command["command"].upper() == ""):
+            pass
+        elif (command["command"].upper() == ""):
+            pass
+        # vyčistit command
+        command["arg1"] = ""
+        command["arg2"] = ""
+        command["arg3"] = ""
+        command["command"] = ""
+        command["arg1_value"] = ""
+        command["arg2_value"] = ""
+        command["arg3_value"] = ""
+
+    # pass
+    # print('End element:', name) #!debug
 
 
 def main():
