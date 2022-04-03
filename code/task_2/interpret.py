@@ -4,11 +4,27 @@ import sys
 #import xml.dom.minidom as xml
 import xml.parsers.expat as xml
 import re
+
+from attr import attr
 # konstanty
 import assets.constants as CONST
 
-# globalní hodnota pro order
-order = 0
+# globalní proměnná pro order
+order = 1
+# globalní proměnná pro zásobníkové příkazy
+stack = []
+# globální proměnná pro kontolu jestli se objevil element program
+program = False
+# globální proměnné pro příkaz
+command = {
+    "command": "",
+    "arg1": "",
+    "arg1_value": "",
+    "arg2": "",
+    "arg2_value": "",
+    "arg3": "",
+    "arg3_value": ""
+}
 
 
 def print_help():
@@ -69,26 +85,58 @@ def file_handler(filename):
             print("Error: File not exists or is not available right now.",
                   file=sys.stderr)
             exit(CONST.FILE_INPUT)
-    else:
+    '''  else:
         for line in iter(input, ''):
-            print(line)
-        return False
+            print(line) '''
+    return False
 
 
 def start_element_handler(name, attrs):
     # Funkce, která zpracovává počáteční elementy z xml dat
-    print(order)
+    if name == "program":
+        global program
+        program = True
+        if (attrs['language'].upper() != "IPPCODE22"):
+            print("Error: Header doesnt exist.", file=sys.stderr)
+            exit(CONST.XML_UNEXPECTED_STRUCT)
+    if name == "instruction":
+        global order
+        if (str(order) == attrs['order']):
+            order = order + 1
+        else:
+            print("Error: Unexpected order number.", file=sys.stderr)
+            exit(CONST.XML_UNEXPECTED_STRUCT)
+    global command
+    if name == "arg1":
+        command["arg1"] = attrs
+    if name == "arg2":
+        command["arg2"] = attrs
+    if name == "arg3":
+        command["arg3"] = attrs
     print('Start element:', name, attrs)
 
 
 def end_element_handler(name):
     # Funkce, která zpracovává koncové elementy z xml dat
-    print('End element:', name)
+    # vlastně nic nezpracovává jen dává vědet, který element byl ukončen
+    if (name == "instruction"):
+        print(command)
+    # pass
+    # print('End element:', name) #!debug
 
 
 def char_data_handler(data):
     # Funkce, která zpracovává hodnoty z elementů z xml dat
     if (re.match("[0-9a-zA-Z]+", data) != None):
+        global command
+        if not command["arg1_value"]:
+            command["arg1_value"] = data
+        elif command["arg1_value"] and not command["arg2_value"]:
+            command["arg2_value"] = data
+        elif command["arg2_value"] and not command["arg3_value"]:
+            command["arg3_value"] = data
+        else: 
+            print("Error: ") #TODO
         print('Character data:', repr(data))
 
 
@@ -110,7 +158,11 @@ def main():
     # procházím vstupní data
     for i in source_data:
         parser.Parse(i)
-        print("----------------")
+
+    # pokud se v programu vůbec nevyskytuje program
+    if (not program):
+        print("Error: Program element doesnt exist in this file.", file=sys.stderr)
+        exit(CONST.XML_UNEXPECTED_STRUCT)
 
     # ukončení
     exit(CONST.SUCCESS)
