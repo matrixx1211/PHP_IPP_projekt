@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Test results</title>
+<style>
+        body {
+            font-family: "Arial", sans-serif;
+            color: #2c3e50;
+            background: #ecf0f1;
+        }
+
+        table, td {
+            border: 1px solid #2c3e50;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        td {
+            padding-left: 20px;
+        }
+
+        a {
+            float: right;
+            margin-right: 20px;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        .green {
+            background-color: #2ecc71;
+        }
+
+        .red {
+            background-color: #e74c3c;
+        }
+
+        .newLine {
+            white-space: pre-line;
+        }
+
+        .toggle {
+            display: block;
+            height: 80px;
+            overflow: hidden;
+        }
+    </style>
+<script>
+        function toggle(a) {
+            var div = a.parentElement;
+            
+            if (div.style.height == "auto") {
+                div.style.height = "80px";
+                a.innerHTML = "SHOW MORE +"
+            } else {
+                div.style.height = "auto";
+                a.innerHTML = "SHOW LESS -" 
+            }
+        }
+    </script>
+</head>
+<body>
+<h1>Test results</h1>
+<table>
+<tr>
+<td><h3>error_string_out_of_range</h3></td>
+<td class="red">parse.php<br>rc expected: 58 real: 255</td>
+<td>interpret.py<br>rc expected: - real: -</td>
+<td class="red">status fail</td>
+</tr>
+<tr>
+<td><h3>read_test</h3></td>
+<td class="red">parse.php<br>rc expected: 0 real: 255</td>
+<td>interpret.py<br>rc expected: - real: -</td>
+<td class="red">status fail</td>
+</tr>
+<tr>
+<td><h3>spec_example</h3></td>
+<td class="red">parse.php<br>rc expected: 0 real: 255</td>
+<td>interpret.py<br>rc expected: - real: -</td>
+<td class="red">status fail</td>
+</tr>
+</table>
+</body>
+</html>
