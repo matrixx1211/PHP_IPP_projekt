@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <program language="IPPcode22" name="Stack test">
-   <!--  <instruction order="2" opcode="PUSHS">
+    <instruction order="2" opcode="PUSHS">
         <arg1 type="string">světe</arg1>
     </instruction>
     <instruction order="4" opcode="PUSHS">
@@ -24,10 +24,12 @@
     <instruction order="13" opcode="POPS">
         <arg1 type="var">GF@val</arg1>
     </instruction>
+    <!-- <instruction order="14" opcode="break"></instruction> -->
     <instruction order="17" opcode="INT2CHAR">
         <arg1 type="var">GF@space</arg1>
         <arg2 type="var">GF@val</arg2>
     </instruction>
+    <!-- <instruction order="18" opcode="break"></instruction> -->
     <instruction order="20" opcode="WRITE">
         <arg1 type="var">GF@space</arg1>
     </instruction>
@@ -36,62 +38,89 @@
     </instruction>
     <instruction order="40" opcode="WRITE">
         <arg1 type="var">GF@val</arg1>
-    </instruction> -->
-    <instruction order="7" opcode="DEFVAR">
+    </instruction>
+    <instruction order="80" opcode="PUSHs">
+        <arg1 type="int">776734525</arg1>
+    </instruction>
+    <instruction order="90" opcode="PopS">
         <arg1 type="var">GF@val</arg1>
     </instruction>
-    <instruction order="8" opcode="DEFVAR">
+    <!-- <instruction order="91" opcode="DpRiNt">
+        <arg1 type="var">GF@val</arg1>
+    </instruction> -->
+    <!-- <instruction order="92" opcode="break"></instruction> -->
+    <instruction order="92" opcode="CREATEFRAME">
+    </instruction>
+    <instruction order="94" opcode="DEFVAR">
+        <arg1 type="var">TF@x</arg1>
+    </instruction>
+    
+    <instruction order="95" opcode="MOVE">
         <arg1 type="var">GF@space</arg1>
-    </instruction>
-    <instruction order="40" opcode="CREATEFRAME">
-    </instruction>
-    <instruction order="41" opcode="DEFVAR">
-        <arg1 type="var">TF@a</arg1>
-    </instruction>
-    <instruction order="42" opcode="DEFVAR">
-        <arg1 type="var">TF@aa</arg1>
-    </instruction>
-    <instruction order="45" opcode="PUSHFRAME">
+        <arg2 type="string">10</arg2>
     </instruction>
 
-    <instruction order="50" opcode="CREATEFRAME">
+    <instruction order="97" opcode="READ">
+        <arg1 type="var">GF@val</arg1>
+        <arg2 type="type">bool</arg2>
     </instruction>
-    <instruction order="51" opcode="DEFVAR">
-        <arg1 type="var">TF@b</arg1>
+    <instruction order="99" opcode="DEFVAR">
+        <arg1 type="var">GF@val2</arg1>
     </instruction>
-    <instruction order="52" opcode="DEFVAR">
-        <arg1 type="var">TF@bb</arg1>
+    <instruction order="100" opcode="TYPE">
+        <arg1 type="var">GF@val</arg1>
+        <arg2 type="var">GF@val2</arg2>
     </instruction>
-    <instruction order="55" opcode="PUSHFRAME">
+    <instruction order="101" opcode="DEFVAR">
+        <arg1 type="var">GF@left</arg1>
     </instruction>
-    <instruction order="56" opcode="DEFVAR">
-        <arg1 type="var">LF@ba</arg1>
+    <instruction order="102" opcode="DEFVAR">
+        <arg1 type="var">GF@right</arg1>
     </instruction>
-
-    <!-- <instruction order="60" opcode="popframE">
+    <instruction order="103" opcode="MOVE">
+        <arg1 type="var">GF@left</arg1>
+        <arg2 type="bool">true</arg2>
     </instruction>
-    <instruction order="61" opcode="popframE">
+    <instruction order="104" opcode="MOVE">
+        <arg1 type="var">GF@right</arg1>
+        <arg2 type="bool">true</arg2>
     </instruction>
-    <instruction order="62" opcode="popframE">
+<!--     <instruction order="105" opcode="break"></instruction>
+ -->    <instruction order="106" opcode="EQ">
+        <arg1 type="var">GF@val</arg1>
+        <arg2 type="var">GF@left</arg2>
+        <arg3 type="var">GF@right</arg3>
+    </instruction>
+<!--     <instruction order="107" opcode="break"></instruction>
+ -->    <instruction order="108" opcode="MOVE">
+        <arg1 type="var">GF@val</arg1>
+        <arg2 type="nil">nil</arg2>
+    </instruction>
+    <instruction order="109" opcode="DEFVAR">
+        <arg1 type="var">GF@a</arg1>
+    </instruction>
+    <instruction order="110" opcode="TYPE">
+        <arg1 type="var">GF@a</arg1>
+        <arg2 type="bool">true</arg2>
+    </instruction>
+    <!-- <instruction order="111" opcode="WRITE">
+        <arg1 type="var">GF@a</arg1>
     </instruction> -->
-
-    <!-- <instruction order="50" opcode="PUSHFRAME">
-    </instruction> -->
-    <!-- <instruction order="60" opcode="popframE">
-    </instruction> -->
-    <!-- <instruction order="46" opcode="POPFRAME">
-    </instruction> -->
-<!--     <instruction order="43" opcode="CREATEFRAME">
+    <instruction order="111" opcode="CONCAT">
+        <arg1 type="var">GF@val</arg1>
+        <arg2 type="string">Mrdat</arg2>
+        <arg3 type="string">69</arg3>
     </instruction>
-    <instruction order="44" opcode="PUSHFRAME">
-    </instruction> -->
-   <!--  <instruction order="41" opcode="PUSHS">
-        <arg1 type="int">50</arg1>
+    <instruction order="112" opcode="SETCHAR">
+        <arg1 type="var">GF@val</arg1>
+        <arg2 type="int">0</arg2>
+        <arg3 type="string">H</arg3>
     </instruction>
-    <instruction order="42" opcode="POPS">
+    <instruction order="113" opcode="WRITE">
         <arg1 type="var">GF@val</arg1>
     </instruction>
-    <instruction order="43" opcode="EXIT">
+    <instruction order="200" opcode="break"></instruction>
+    <!-- <instruction order="100" opcode="EXIT">
         <arg1 type="var">GF@val</arg1>
     </instruction> -->
 </program>
