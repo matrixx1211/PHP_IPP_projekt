@@ -52,7 +52,8 @@ def print_help():
     print("\t-h or --help <- prints usage")
     print("\t-s or --source <- XML file with source code for instance -s example.xml or --source=example.xml")
     print("\t-i or --input <- file with inputs for instance -i example.txt or --input=example.txt")
-
+    exit(CONST.SUCCESS)
+    
 # kontroluje vstupní argumenty
 def args_test():
     ''' Testování argumentů a jejich počet '''
