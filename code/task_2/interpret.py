@@ -2,6 +2,7 @@ from copy import deepcopy
 import errno
 import getopt
 from glob import glob
+from operator import index
 from pickle import GLOBAL
 import sys
 from threading import local
@@ -36,7 +37,12 @@ commands = []
 global_frame_vars = []
 local_frame_vars = None
 temp_frame_vars = None
-# globální proměnná pro vstupní hodnoty
+# globální proměnná pro čítač instrukcí
+instruction_counter = 0
+# globální proměnná zásobník návratovových indexů
+call_index_stack = []
+# globální proměnná pro 
+labels = []
 
 
 def print_help():
@@ -55,7 +61,6 @@ def args_test():
     try:
         opts, args = getopt.getopt(
             sys.argv[1:], "hs:i:", ("help", "source=", "input="))
-        # print(sys.argv[0:]) #!DEBUG
         args_count = len(opts)
         source_filename = ""
         input_filename = ""
@@ -289,6 +294,17 @@ def evaluate_bool(c, op):
             
     var["type"] = "bool"
     
+def print_error(c, msg, code):
+    print(f"Error:\t{msg} Located in:", file=sys.stderr)
+    print(f"\tCommand:\t{c['command']}", file=sys.stderr)
+    print(f"\tOrder:\t\t{c['order']}", file=sys.stderr)
+    print(f"\tArg1:\t\t{c['arg1']}", file=sys.stderr)
+    print(f"\tArg2:\t\t{c['arg2']}", file=sys.stderr)
+    print(f"\tArg3:\t\t{c['arg3']}", file=sys.stderr)
+    print(f"\tArg1 value:\t{c['arg1_value']}", file=sys.stderr)
+    print(f"\tArg2 value:\t{c['arg2_value']}", file=sys.stderr)
+    print(f"\tArg3 value:\t{c['arg3_value']}", file=sys.stderr)
+    exit(code)
     
 def interpret(c, in_data):
     # funkce bere jako parametr příkaz c a zpracováva ho
@@ -296,14 +312,16 @@ def interpret(c, in_data):
     global temp_frame_vars
     global local_frame_vars
     global stack
+    global labels
+    global instruction_counter
+    global call_index_stack
     # funkce interpretuje příkazy a jako argument získává jeden přikaz
     if (c["command"] == "CREATEFRAME"):
         temp_frame_vars = []
     elif (c["command"] == "PUSHFRAME"):
         # pokud je prázdný dočasný rámec dojde k chybě
         if (temp_frame_vars == None):
-            print("Error: Temporary frame doesn't exists.", file=sys.stderr)
-            exit(CONST.RUNTIME_NOT_EXIST_FRAME)
+            print_error(c, f"Temporary frame doesn't exists.", CONST.RUNTIME_NOT_EXIST_FRAME)
         # pokud je neinicializováný lokální rámec inicializuju
         if (local_frame_vars == None):
             local_frame_vars = []  
@@ -327,13 +345,12 @@ def interpret(c, in_data):
                 var["name"] = var["name"].replace("LF@", "TF@")      
         # jestliže je prázdný zásobník lokálních rámců
         else:
+            #print_error(c, )
             print("Error: No local frame to pop.", file=sys.stderr)
             exit(CONST.RUNTIME_NOT_EXIST_FRAME)
-    elif (c["command"] == "RETURN"):
-        pass
     elif (c["command"] == "BREAK"):
         print(f"---------------------------------------------------------------------", file=sys.stderr)
-        print(f"State: \tcurrent command is \"{c['command']}\" with order \"{c['order']}\"!", file=sys.stderr)
+        print(f"State: \tcurrent command is \"{c['command']}\" with order \"{c['order']}\" on index \"{instruction_counter}\"!", file=sys.stderr)
         
         print(f"\tcontent of stack:", file=sys.stderr)
         if stack:
@@ -359,6 +376,20 @@ def interpret(c, in_data):
         print(f"\tcontent of temp frame:", file=sys.stderr)
         if temp_frame_vars != None:
             for i in temp_frame_vars:
+                print(f"\t\t{i}", file=sys.stderr)
+        else:
+            print(f"\t\tEmpty", file=sys.stderr)
+            
+        print(f"\tcontent of labels:", file=sys.stderr)
+        if labels:
+            for i in labels:
+                print(f"\t\t{i}", file=sys.stderr)
+        else:
+            print(f"\t\tEmpty", file=sys.stderr)
+            
+        print(f"\tcontent of call index stack:", file=sys.stderr)
+        if call_index_stack:
+            for i in call_index_stack:
                 print(f"\t\t{i}", file=sys.stderr)
         else:
             print(f"\t\tEmpty", file=sys.stderr)
@@ -585,16 +616,49 @@ def interpret(c, in_data):
             print(f"Error: Unexpected types, \"{var['type']}\", \"{pos_var['type']}\" and \"{string_var['type']}\" expected \"string\", \"int\" and \"string\".", file=sys.stderr)
             exit(CONST.RUNTIME_BAD_OP_TYPES)
     elif (c["command"] == "CALL"):
-        pass
-    elif (c["command"] == "LABEL"):
-        pass
+        label = list(filter(lambda var: var['name'] == c["arg1_value"], labels))
+        if (label):
+            call_index_stack.append({"return_pos": label[0]["index"], "call_pos": instruction_counter, "call_on_label": label[0]["name"]})
+            return label[0]["index"]
+        else: 
+            print(f"Error: Can't perform \"CALL\", label \"{c['arg1_value']}\" doesn't exist.", file=sys.stderr)
+            exit(CONST.SEM_CHECK)
+    elif (c["command"] == "RETURN"):
+        if (call_index_stack):
+            pop = call_index_stack.pop()
+            return pop["return_pos"]
+        else: 
+            print(f"Error: Can't perform \"RETURN\", the \"CALL\" wasn't called and call stack is empty.", file=sys.stderr)
+            exit(CONST.RUNTIME_MISSING_VALUE)
     elif (c["command"] == "JUMP"):
-        pass
-    elif (c["command"] == "JUMPIFEQ"):
-        pass
-    elif (c["command"] == "JUMPIFNEQ"):
-        pass
+        label = list(filter(lambda var: var['name'] == c["arg1_value"], labels))
+        if (label):
+            return label[0]["index"]
+        else: 
+            print(f"Error: Label \"{c['arg1_value']}\" doesn't exist.", file=sys.stderr)
+            exit(CONST.SEM_CHECK)
+    elif (c["command"] == "JUMPIFEQ" or c["command"] == "JUMPIFNEQ"):
+        label = list(filter(lambda var: var['name'] == c["arg1_value"], labels))
+        left = check_variable_value(find_variable_values(c["arg2"]["type"], c["arg2_value"]))
+        right = check_variable_value(find_variable_values(c["arg3"]["type"], c["arg3_value"]))
+        if (left["type"] == right["type"] or left["type"] == "nil" or right["type"]):
+            if (not label):
+                print(f"Error: Label \"{c['arg1_value']}\" doesn't exist.", file=sys.stderr)
+                exit(CONST.SEM_CHECK)
+                
+            if (c["command"] == "JUMPIFEQ"):
+                if (left["value"] == right["value"]):
+                    return label[0]["index"]
+                
+            elif (c["command"] == "JUMPIFNEQ"):
+                if (left["value"] != right["value"]):
+                    return label[0]["index"]
+            
+        else: 
+            print(f"Error: Unexpected types.", file=sys.stderr)
+            exit(CONST.RUNTIME_BAD_OP_TYPES)
     
+    return instruction_counter+1
 
 
 def xml_encoding_set(version, encoding, standalone):
@@ -631,22 +695,39 @@ def main():
     global commands
     commands = sorted(commands, key=lambda dict: dict['order'])
 
-    # kontrola orderu
+    # kontrola orderu + přidání si labelů
+    global labels
     last_ord = 0
     for c in commands:
         if (last_ord != c["order"] and c["order"] > 0):
             last_ord = c["order"]
+            if (c["command"] == "LABEL"):
+                if (list(filter(lambda var: var['name'] == c["arg1_value"], labels))):
+                    print(f"Error: Label redefinition => \"{c['arg1_value']}\".", file=sys.stderr)
+                    exit(CONST.SEM_CHECK)
+                else:
+                    label = {}
+                    label["index"] = commands.index(c)
+                    label["name"] = c["arg1_value"]
+                    labels.append(label)
         else:
             print("Error: Unexpected order number.", file=sys.stderr)
             exit(CONST.XML_UNEXPECTED_STRUCT)
 
     # interpretace příkazů
-    for c in commands: #! vrátí index odkud má pokračovat interpretace LABEL CALL RETURN řešení asi -> (:_:)
-        interpret(c, input_data)
+    global instruction_counter
+    i = 0
+    while i < len(commands):
+        instruction_counter = interpret(commands[instruction_counter], input_data)
+        i = instruction_counter
     
     # ukončení
     exit(CONST.SUCCESS)
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except MemoryError:
+        print(f"Error: Internal error.", file=sys.stderr)
+        exit(CONST.INTERNAL)
