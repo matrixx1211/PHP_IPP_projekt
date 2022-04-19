@@ -3,9 +3,9 @@ ini_set('display_errors', 'stderr');
 
 /* Analyzátor kódu */
 // připojení pomocných souborů ke skriptu
-include_once("./assets/constants.php");
-include_once("./assets/arguments.php");
-include_once("./assets/analyzator.php");
+include_once("./parse_assets/constants.php");
+include_once("./parse_assets/arguments.php");
+include_once("./parse_assets/analyzator.php");
 
 // Kontrola argumentů
 $args = new Arguments();

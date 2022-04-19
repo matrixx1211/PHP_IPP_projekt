@@ -1,11 +1,9 @@
-from copy import deepcopy
-import errno
+''' 
+    # IPP 2022 projekt 2 - interpret
+    # @author Marek Bitomský
+'''
 import getopt
-from glob import glob
-from operator import index
-from pickle import GLOBAL
 import sys
-from threading import local
 # import xml.dom.minidom as xml
 import xml.parsers.expat as xml
 import re
@@ -44,7 +42,7 @@ call_index_stack = []
 # globální proměnná pro 
 labels = []
 
-
+# vypíše nápovědu
 def print_help():
     ''' Funkce pro výpis nápovědy '''
     print("Interpret usage:")
@@ -55,7 +53,7 @@ def print_help():
     print("\t-s or --source <- XML file with source code for instance -s example.xml or --source=example.xml")
     print("\t-i or --input <- file with inputs for instance -i example.txt or --input=example.txt")
 
-
+# kontroluje vstupní argumenty
 def args_test():
     ''' Testování argumentů a jejich počet '''
     try:
@@ -83,10 +81,9 @@ def args_test():
             print_help()
         return source_filename, input_filename
     except getopt.GetoptError as err:
-        print("Error:", err, file=sys.stderr)
-        exit(CONST.PARAM_MISS_OR_COMBINATION)
+        print_error(None, err, CONST.PARAM_MISS_OR_COMBINATION)
 
-
+# otevírá soubor s názvem filename zadaný jako parametr a vrací data
 def file_handler(filename):
     ''' Otevře zadaný soubor nebo vráti False pro stdin '''
     data = []
@@ -99,8 +96,7 @@ def file_handler(filename):
                         data.append(line.replace("\n", "").strip())
             return data
         except FileNotFoundError:
-            print("Error: File not exists or is not available right now.",file=sys.stderr)
-            exit(CONST.FILE_INPUT)
+            print_error(None, "File not exists or is not available right now.", CONST.FILE_INPUT)
     else:
         file = sys.stdin
         data = file.read().split("\n")
@@ -109,23 +105,20 @@ def file_handler(filename):
         data.pop() 
     return data
 
-
+# funkce, která zpracovává počáteční elementy z xml dat
 def start_element_handler(name, attrs):
     global program
     global order
     global command
-    # Funkce, která zpracovává počáteční elementy z xml dat
     if name == "program":
         program = True
         if (attrs['language'].upper() != "IPPCODE22"):
-            print("Error: Header doesnt exist.", file=sys.stderr)
-            exit(CONST.XML_UNEXPECTED_STRUCT)
+            print_error(None, "Header doesnt exist.", CONST.XML_UNEXPECTED_STRUCT)
     if name == "instruction":
         command["command"] = attrs["opcode"].upper()
         command["order"] = int(attrs["order"])
         if (int(attrs["order"]) <= 0):
-            print("Error: Unexpected order number.", file=sys.stderr)
-            exit(CONST.XML_UNEXPECTED_STRUCT)
+            print_error(None, "Unexpected order number.", CONST.XML_UNEXPECTED_STRUCT)
     if name == "arg1":
         command["arg1"] = attrs
     if name == "arg2":
@@ -133,9 +126,8 @@ def start_element_handler(name, attrs):
     if name == "arg3":
         command["arg3"] = attrs
 
-
+# funkce, která zpracovává hodnoty z elementů z xml dat
 def char_data_handler(data):
-    # Funkce, která zpracovává hodnoty z elementů z xml dat
     if (data.strip()):
         global command
         if not command["arg1_value"]:
@@ -145,15 +137,13 @@ def char_data_handler(data):
         elif command["arg2_value"] and not command["arg3_value"]:
             command["arg3_value"] = data
         else:
-            print("Error: Unexpected arg value.", file=sys.stderr)
-            exit(CONST.SEM_CHECK)
+            print_error(command, "Unexpected arg value.", CONST.SEM_CHECK)
 
-
+# funkce, která zpracovává koncové elementy z xml dat
+# v podstaně nic nezpracovává jen dává vědet, který element byl ukončen
 def end_element_handler(name):
     global command
     global commands
-    # Funkce, která zpracovává koncové elementy z xml dat
-    # vlastně nic nezpracovává jen dává vědet, který element byl ukončen
     if (name == "instruction"):
         commands.append(command.copy())
 
@@ -167,7 +157,7 @@ def end_element_handler(name):
         command["arg2_value"] = None
         command["arg3_value"] = None
 
-
+# vyhledá hodnotu proměnné v rámcích bere type (var, int, string, ...) a val název proměnné
 def find_variable_values(type, val):
     if (type == "var"):
         if ("GF" in val):
@@ -180,8 +170,7 @@ def find_variable_values(type, val):
                     if (var["name"] == val):
                         return var
             else: 
-                print("Error: Temporary frame doesn't exists.", file=sys.stderr)
-                exit(CONST.RUNTIME_NOT_EXIST_FRAME)
+                print_error(commands[instruction_counter], "Temporary frame doesn't exists.", CONST.RUNTIME_NOT_EXIST_FRAME)
         elif ("LF" in val):
             if local_frame_vars != None:
                 last_local_frame = local_frame_vars.pop()
@@ -190,31 +179,32 @@ def find_variable_values(type, val):
                         local_frame_vars.append(last_local_frame)
                         return var
             else:
-                print("Error: Local frame doesn't exists.", file=sys.stderr)
-                exit(CONST.RUNTIME_NOT_EXIST_FRAME)
-        print(f"Error: Variable not exists => \"{val}\".", file=sys.stderr)
-        exit(CONST.RUNTIME_NOT_EXIST_VAR)
+                print_error(commands[instruction_counter], "Local frame doesn't exists.", CONST.RUNTIME_NOT_EXIST_FRAME)
+        print_error(commands[instruction_counter], f"Variable not exists => \"{val}\".", CONST.RUNTIME_NOT_EXIST_VAR)
         # nenalezeno v žádném z rámců
     elif (type == "int" or type == "string" or type == "bool" or type == "nil"):
         value = {}
         value["name"] = None
+        if (type == "string" and val == None):
+            val = ""    
         value["value"] = val
         value["type"] = type
         return value
 
-
+# změní hodnotu a typ proměnné old na hodnoty proměnné new
 def change_variable_value(old, new):
     old["value"] = new["value"]
     old["type"] = new["type"]
 
+# kontrola, jestli má proměnná var zadaná v parametru nějaké hodnoty
 def check_variable_value(var):
     # kontrola jestli má zadaná proměnná zadanou hodnotu
     if var["type"] == None or var["value"] == None:
-        print(f"Error: Variable doesn't have value => \"{var['name']}\".", file=sys.stderr)
-        exit(CONST.RUNTIME_MISSING_VALUE)
+        print_error(commands[instruction_counter], f"Variable doesn't have value => \"{var['name']}\".", CONST.RUNTIME_MISSING_VALUE)
     else:
         return var
 
+# podle operátoru op dělá základní operace +,-,*,/ nad příkazem c
 def calculate(c, op):
     var = find_variable_values(c["arg1"]["type"], c["arg1_value"])
     left = check_variable_value(find_variable_values(c["arg2"]["type"], c["arg2_value"]))
@@ -230,28 +220,25 @@ def calculate(c, op):
             var["value"] = str(lv * rv)
         elif (op == "/"):
             if (rv == 0):
-                print(f"Error: Division by zero.", file=sys.stderr)
-                exit(CONST.RUNTIME_BAD_OP_VALUE)
+                print_error(c, "Division by zero.", CONST.RUNTIME_BAD_OP_VALUE)
             else:
                 var["value"] = str(lv // rv)
         var["type"] = "int"
     else: 
-        print(f"Error: Unexpected types, get \"{left['type']}\" and \"{right['type']}\" expected \"int\" and \"int\".", file=sys.stderr)
-        exit(CONST.RUNTIME_BAD_OP_TYPES)
+        print_error(c, f"Unexpected types, get \"{left['type']}\" and \"{right['type']}\" expected \"int\" and \"int\".", CONST.RUNTIME_BAD_OP_TYPES)
     
+# vyhodnocuje porovnávání mezi dvěma hodnotama dle operátoru nad příkazem c
 def evaluate_bool(c, op):
     var = find_variable_values(c["arg1"]["type"], c["arg1_value"])
     left = check_variable_value(find_variable_values(c["arg2"]["type"], c["arg2_value"]))
     if (op != "not"):
         right = check_variable_value(find_variable_values(c["arg3"]["type"], c["arg3_value"]))
         if (left["type"] != right["type"]):
-            print(f"Error: Unexpected types, \"{left['type']}\" and \"{right['type']}\" expected same.", file=sys.stderr)
-            exit(CONST.RUNTIME_BAD_OP_TYPES)
+            print_error(c, f"Unexpected types, \"{left['type']}\" and \"{right['type']}\" expected same.", CONST.RUNTIME_BAD_OP_TYPES)
     if (left["type"] == "int" or left["type"] == "string" or left["type"] == "bool" or left["type"] == "nil"):
         if (op == "<" or op == ">"):
             if(left["type"] == "nil"):
-                print(f"Error: Unexpected types, expected \"(int,string,bool)\".", file=sys.stderr)
-                exit(CONST.RUNTIME_BAD_OP_TYPES)
+                print_error(c, "Unexpected types, expected \"(int,string,bool)\".", CONST.RUNTIME_BAD_OP_TYPES)
             else:
                 if (op == "<"):
                     if (left["value"] < right["value"]):
@@ -286,28 +273,27 @@ def evaluate_bool(c, op):
                     else:
                         var["value"] = "false"
             else:
-                print(f"Error: Unexpected type, get \"{left['type']}\" expected \"bool\".", file=sys.stderr)
-                exit(CONST.RUNTIME_BAD_OP_TYPES)
+                print_error(c, f"Unexpected type, get \"{left['type']}\" expected \"bool\".", CONST.RUNTIME_BAD_OP_TYPES)
     else:
-        print(f"Error: Unexpected types, expected \"(int,string,bool,nil)\".", file=sys.stderr)
-        exit(CONST.RUNTIME_BAD_OP_TYPES)
-            
+        print_error(c, "Unexpected types, expected \"(int,string,bool,nil)\".", CONST.RUNTIME_BAD_OP_TYPES)
     var["type"] = "bool"
-    
+
+# dělá výpis na stderr s dodatečným info o příkazu c, code je návratová hodnota a msg je zpráva
 def print_error(c, msg, code):
     print(f"Error:\t{msg} Located in:", file=sys.stderr)
-    print(f"\tCommand:\t{c['command']}", file=sys.stderr)
-    print(f"\tOrder:\t\t{c['order']}", file=sys.stderr)
-    print(f"\tArg1:\t\t{c['arg1']}", file=sys.stderr)
-    print(f"\tArg2:\t\t{c['arg2']}", file=sys.stderr)
-    print(f"\tArg3:\t\t{c['arg3']}", file=sys.stderr)
-    print(f"\tArg1 value:\t{c['arg1_value']}", file=sys.stderr)
-    print(f"\tArg2 value:\t{c['arg2_value']}", file=sys.stderr)
-    print(f"\tArg3 value:\t{c['arg3_value']}", file=sys.stderr)
+    if (c != None):
+        print(f"\tCommand:\t{c['command']}", file=sys.stderr)
+        print(f"\tOrder:\t\t{c['order']}", file=sys.stderr)
+        print(f"\tArg1:\t\t{c['arg1']}", file=sys.stderr)
+        print(f"\tArg2:\t\t{c['arg2']}", file=sys.stderr)
+        print(f"\tArg3:\t\t{c['arg3']}", file=sys.stderr)
+        print(f"\tArg1 value:\t{c['arg1_value']}", file=sys.stderr)
+        print(f"\tArg2 value:\t{c['arg2_value']}", file=sys.stderr)
+        print(f"\tArg3 value:\t{c['arg3_value']}", file=sys.stderr)
     exit(code)
-    
+
+# funkce bere jako parametr příkaz c a zpracováva ho, vrací hodnotu instrukčního čitače
 def interpret(c, in_data):
-    # funkce bere jako parametr příkaz c a zpracováva ho
     global global_frame_vars
     global temp_frame_vars
     global local_frame_vars
@@ -345,9 +331,7 @@ def interpret(c, in_data):
                 var["name"] = var["name"].replace("LF@", "TF@")      
         # jestliže je prázdný zásobník lokálních rámců
         else:
-            #print_error(c, )
-            print("Error: No local frame to pop.", file=sys.stderr)
-            exit(CONST.RUNTIME_NOT_EXIST_FRAME)
+            print_error(c, "No local frame to pop.", CONST.RUNTIME_NOT_EXIST_FRAME)
     elif (c["command"] == "BREAK"):
         print(f"---------------------------------------------------------------------", file=sys.stderr)
         print(f"State: \tcurrent command is \"{c['command']}\" with order \"{c['order']}\" on index \"{instruction_counter}\"!", file=sys.stderr)
@@ -402,9 +386,7 @@ def interpret(c, in_data):
                 gf_dict = {}
                 # pokud se vyskytuje proměnná stejného názvu dojde k chybě
                 if (list(filter(lambda var: var['name'] == c["arg1_value"], global_frame_vars))):
-                    print(
-                        f"Error: Variable redefinition => \"{c['arg1_value']}\".", file=sys.stderr)
-                    exit(CONST.SEM_CHECK)
+                    print_error(c, f"Variable redefinition => \"{c['arg1_value']}\".", CONST.SEM_CHECK)
                 else:
                     gf_dict["name"] = c["arg1_value"]
                     gf_dict["value"] = None
@@ -413,16 +395,13 @@ def interpret(c, in_data):
             elif ("TF@" in c["arg1_value"]):
                 # pokud ještě nebyl vytvořený dočasný rámec dojde k chybě
                 if (temp_frame_vars == None):
-                    print("Error: Temporary frame doesn't exists.", file=sys.stderr)
-                    exit(CONST.RUNTIME_NOT_EXIST_FRAME)
+                    print_error(c, "Temporary frame doesn't exists.", CONST.RUNTIME_NOT_EXIST_FRAME)
                 # pokud existuje přidá se proměnná do pole dočasných proměnných
                 else:
                     tf_dict = {}
                     # pokud se vyskytuje proměnná stejného názvu dojde k chybě
                     if (list(filter(lambda var: var['name'] == c["arg1_value"], temp_frame_vars))):
-                        print(
-                            f"Error: Variable redefinition => \"{c['arg1_value']}\".", file=sys.stderr)
-                        exit(CONST.SEM_CHECK)
+                        print_error(c, f"Variable redefinition => \"{c['arg1_value']}\".", CONST.SEM_CHECK)
                     # jinak se vloží
                     else:
                         tf_dict["name"] = c["arg1_value"]
@@ -432,16 +411,14 @@ def interpret(c, in_data):
             elif ("LF@" in c["arg1_value"]):
                 # pokud ještě nebyl vytvořený žádný lokální rámec dojde k chybě
                 if (local_frame_vars == None):
-                    print("Error: Local frame doesn't exists.", file=sys.stderr)
-                    exit(CONST.RUNTIME_NOT_EXIST_FRAME)
+                    print_error(c, "Local frame doesn't exists.", CONST.RUNTIME_NOT_EXIST_FRAME)
                 # pokud existuje přidá se proměnná do pole dočasných proměnných
                 else:
                     lf_dict = {}
                     # pokud se vyskytuje proměnná stejného názvu dojde k chybě
                     top = local_frame_vars.pop()
                     if (list(filter(lambda var: var['name'] == c["arg1_value"], top))):
-                        print(f"Error: Variable redefinition => \"{c['arg1_value']}\".", file=sys.stderr)
-                        exit(CONST.SEM_CHECK)
+                        print_error(c, f"Variable redefinition => \"{c['arg1_value']}\".", CONST.SEM_CHECK)
                     # jinak se vloží
                     else:
                         lf_dict["name"] = c["arg1_value"]
@@ -450,15 +427,13 @@ def interpret(c, in_data):
                         top.append(lf_dict.copy())
                         local_frame_vars.append(top.copy())
         else: 
-            print(f"Error: Unexpected type, get \"{c['arg1']['type']}\" expected \"var\".", file=sys.stderr)
-            exit(CONST.RUNTIME_BAD_OP_TYPES)
+            print_error(c, f"Unexpected type, get \"{c['arg1']['type']}\" expected \"var\".", CONST.RUNTIME_BAD_OP_TYPES)
     elif (c["command"] == "PUSHS"):
         stack.append(c)
     elif (c["command"] == "POPS"):
         var = find_variable_values(c["arg1"]["type"], c["arg1_value"])
         if (not stack):
-            print(f"Error: Cannot perform pop, stack is empty.", file=sys.stderr)
-            exit(CONST.RUNTIME_MISSING_VALUE)
+            print_error(c, "Cannot perform pop, stack is empty.", CONST.RUNTIME_MISSING_VALUE)
         else:
             pop = stack.pop()
             var["value"] = pop["arg1_value"]
@@ -474,31 +449,29 @@ def interpret(c, in_data):
         var = check_variable_value(find_variable_values(c["arg1"]["type"], c["arg1_value"]))
         exit_value = var["value"]
         if (var["type"] != "int"):    
-            print("Error: Unexpected exit code type.", file=sys.stderr)
-            exit(CONST.RUNTIME_BAD_OP_VALUE)
+            print_error(c, "Unexpected exit code type.", CONST.RUNTIME_BAD_OP_VALUE)
         exit_value = int(exit_value)
         if (exit_value >= 0 and exit_value <= 49):
             exit(exit_value)
         else:
-            print("Error: Unexpected exit code number.", file=sys.stderr)
-            exit(CONST.RUNTIME_BAD_OP_VALUE)
+            print_error(c, "Unexpected exit code number.", CONST.RUNTIME_BAD_OP_VALUE)
     elif (c["command"] == "DPRINT"):
         print(check_variable_value(find_variable_values(c["arg1"]["type"], c["arg1_value"]))["value"], end="", file=sys.stderr)
     elif (c["command"] == "MOVE"):
-        change_variable_value(find_variable_values(c["arg1"]["type"], c["arg1_value"]), find_variable_values(c["arg2"]["type"], c["arg2_value"]))
+        left = find_variable_values(c["arg1"]["type"], c["arg1_value"])
+        right = find_variable_values(c["arg2"]["type"], c["arg2_value"])
+        change_variable_value(left, right)
     elif (c["command"] == "INT2CHAR"):
         var = find_variable_values(c["arg1"]["type"], c["arg1_value"])
         char = check_variable_value(find_variable_values(c["arg2"]["type"], c["arg2_value"]))
         if (char["type"] != "int"):    
-            print(f"Error: Unexpected type, get \"{char['type']}\" expected \"int\".", file=sys.stderr)
-            exit(CONST.RUNTIME_BAD_OP_TYPES)
+            print_error(f"Unexpected type, get \"{char['type']}\" expected \"int\".", CONST.RUNTIME_BAD_OP_TYPES)
         val = int(char["value"])
         if (val >= 0 and val <= 1114111):
             var["value"] = chr(val)
             var["type"] = "string"
         else:
-            print("Error: Value is outside of range <0, 1 114 111> for command \"INT2CHAR\".", file=sys.stderr)
-            exit(CONST.RUNTIME_BAD_STRING)
+            print_error("Value is outside of range <0, 1 114 111> for command \"INT2CHAR\".", CONST.RUNTIME_BAD_STRING)
     elif (c["command"] == "READ"):
         var = find_variable_values(c["arg1"]["type"], c["arg1_value"])
         type = c["arg2_value"]
@@ -513,8 +486,7 @@ def interpret(c, in_data):
                 else:
                     val = "false"
         else: 
-            print(f"Error: Unexpected type, get \"{type}\" expected \"(int, string, bool)\".", file=sys.stderr)
-            exit(CONST.RUNTIME_BAD_OP_TYPES)
+            print_error(f"Unexpected type, get \"{type}\" expected \"(int, string, bool)\".", CONST.RUNTIME_BAD_OP_TYPES)
         var["value"] = val
         var["type"] = type
     elif (c["command"] == "STRLEN"):
@@ -524,8 +496,7 @@ def interpret(c, in_data):
             var["value"] = str(len(len_var["value"]))
             var["type"] = "int"
         else:
-            print(f"Error: Unexpected type, get \"{len_var['type']}\" expected \"string\".", file=sys.stderr)
-            exit(CONST.RUNTIME_BAD_OP_TYPES)
+            print_error(c, f"Unexpected type, get \"{len_var['type']}\" expected \"string\".", CONST.RUNTIME_BAD_OP_TYPES)
     elif (c["command"] == "TYPE"):
         var = find_variable_values(c["arg1"]["type"], c["arg1_value"])
         type_var = find_variable_values(c["arg2"]["type"], c["arg2_value"])
@@ -565,14 +536,11 @@ def interpret(c, in_data):
                     var["value"] = str(val)
                     var["type"] = "int"
                 else:
-                    print(f"Error: Value is outside of range <0, 1 114 111> for command \"INT2CHAR\".", file=sys.stderr)
-                    exit(CONST.RUNTIME_BAD_STRING)
+                    print_error(c, "Value is outside of range <0, 1 114 111> for command \"INT2CHAR\".", CONST.RUNTIME_BAD_STRING)
             else:
-                print(f"Error: Index out of range.", file=sys.stderr)
-                exit(CONST.RUNTIME_BAD_STRING)
+                print_error(c, "Index out of range.", CONST.RUNTIME_BAD_STRING)
         else:
-            print(f"Error: Unexpected types, \"{string_var['type']}\" and \"{pos_var['type']}\" expected \"string\" and \"int\".", file=sys.stderr)
-            exit(CONST.RUNTIME_BAD_OP_TYPES)
+            print_error(c, f"Unexpected types, \"{string_var['type']}\" and \"{pos_var['type']}\" expected \"string\" and \"int\".", CONST.RUNTIME_BAD_OP_TYPES)
     elif (c["command"] == "CONCAT"):
         var = find_variable_values(c["arg1"]["type"], c["arg1_value"])
         string_a_var = check_variable_value(find_variable_values(c["arg2"]["type"], c["arg2_value"]))
@@ -581,8 +549,7 @@ def interpret(c, in_data):
             var["value"] = string_a_var["value"] + string_b_var["value"]
             var["type"] = "string"
         else:
-            print(f"Error: Unexpected types, \"{string_a_var['type']}\" and \"{string_b_var['type']}\" expected same.", file=sys.stderr)
-            exit(CONST.RUNTIME_BAD_OP_TYPES)
+            print_error(c, f"Unexpected types, \"{string_a_var['type']}\" and \"{string_b_var['type']}\" expected same.", CONST.RUNTIME_BAD_OP_TYPES)
     elif (c["command"] == "GETCHAR"):
         var = find_variable_values(c["arg1"]["type"], c["arg1_value"])
         string_var = check_variable_value(find_variable_values(c["arg2"]["type"], c["arg2_value"]))
@@ -592,11 +559,9 @@ def interpret(c, in_data):
                 var["value"] = string_var["value"][int(pos_var["value"])]
                 var["type"] = "string"
             else:
-                print(f"Error: Index out of range.", file=sys.stderr)
-                exit(CONST.RUNTIME_BAD_STRING)
+                print_error(c, "Index out of range.", CONST.RUNTIME_BAD_STRING)
         else:
-            print(f"Error: Unexpected types, \"{string_var['type']}\" and \"{pos_var['type']}\" expected \"string\" and \"int\".", file=sys.stderr)
-            exit(CONST.RUNTIME_BAD_OP_TYPES)
+            print_error(c, f"Unexpected types, \"{string_var['type']}\" and \"{pos_var['type']}\" expected \"string\" and \"int\".", CONST.RUNTIME_BAD_OP_TYPES)
     elif (c["command"] == "SETCHAR"):
         var = check_variable_value(find_variable_values(c["arg1"]["type"], c["arg1_value"]))
         pos_var = check_variable_value(find_variable_values(c["arg2"]["type"], c["arg2_value"]))
@@ -607,66 +572,54 @@ def interpret(c, in_data):
                     var["value"]= var["value"][:int(pos_var["value"])] + string_var["value"][0] + var["value"][int(pos_var["value"])+1:]
                     var["type"] = "string"
                 else:
-                    print(f"Error: Index out of range.", file=sys.stderr)
-                    exit(CONST.RUNTIME_BAD_STRING)
+                    print_error(c, "Index out of range.", CONST.RUNTIME_BAD_STRING)
             else:
-                print(f"Error: Index out of range.", file=sys.stderr)
-                exit(CONST.RUNTIME_BAD_STRING)
+                print_error(c, "Index out of range.", CONST.RUNTIME_BAD_STRING)
         else:
-            print(f"Error: Unexpected types, \"{var['type']}\", \"{pos_var['type']}\" and \"{string_var['type']}\" expected \"string\", \"int\" and \"string\".", file=sys.stderr)
-            exit(CONST.RUNTIME_BAD_OP_TYPES)
+            print_error(c, f"Unexpected types, \"{var['type']}\", \"{pos_var['type']}\" and \"{string_var['type']}\" expected \"string\", \"int\" and \"string\".", CONST.RUNTIME_BAD_OP_TYPES)
     elif (c["command"] == "CALL"):
         label = list(filter(lambda var: var['name'] == c["arg1_value"], labels))
         if (label):
             call_index_stack.append({"return_pos": label[0]["index"], "call_pos": instruction_counter, "call_on_label": label[0]["name"]})
             return label[0]["index"]
         else: 
-            print(f"Error: Can't perform \"CALL\", label \"{c['arg1_value']}\" doesn't exist.", file=sys.stderr)
-            exit(CONST.SEM_CHECK)
+            print_error(c, f"Can't perform \"CALL\", label \"{c['arg1_value']}\" doesn't exist.", CONST.SEM_CHECK)
     elif (c["command"] == "RETURN"):
         if (call_index_stack):
             pop = call_index_stack.pop()
             return pop["return_pos"]
         else: 
-            print(f"Error: Can't perform \"RETURN\", the \"CALL\" wasn't called and call stack is empty.", file=sys.stderr)
-            exit(CONST.RUNTIME_MISSING_VALUE)
+            print_error(c, f"Can't perform \"RETURN\", the \"CALL\" wasn't called and call stack is empty.", CONST.RUNTIME_MISSING_VALUE)
     elif (c["command"] == "JUMP"):
         label = list(filter(lambda var: var['name'] == c["arg1_value"], labels))
         if (label):
             return label[0]["index"]
         else: 
-            print(f"Error: Label \"{c['arg1_value']}\" doesn't exist.", file=sys.stderr)
-            exit(CONST.SEM_CHECK)
+            print_error(c, f"Label \"{c['arg1_value']}\" doesn't exist.", CONST.SEM_CHECK)
     elif (c["command"] == "JUMPIFEQ" or c["command"] == "JUMPIFNEQ"):
         label = list(filter(lambda var: var['name'] == c["arg1_value"], labels))
         left = check_variable_value(find_variable_values(c["arg2"]["type"], c["arg2_value"]))
         right = check_variable_value(find_variable_values(c["arg3"]["type"], c["arg3_value"]))
         if (left["type"] == right["type"] or left["type"] == "nil" or right["type"]):
             if (not label):
-                print(f"Error: Label \"{c['arg1_value']}\" doesn't exist.", file=sys.stderr)
-                exit(CONST.SEM_CHECK)
-                
+                print_error(c, f"Label \"{c['arg1_value']}\" doesn't exist.", CONST.SEM_CHECK)
             if (c["command"] == "JUMPIFEQ"):
                 if (left["value"] == right["value"]):
                     return label[0]["index"]
-                
             elif (c["command"] == "JUMPIFNEQ"):
                 if (left["value"] != right["value"]):
                     return label[0]["index"]
-            
         else: 
-            print(f"Error: Unexpected types.", file=sys.stderr)
-            exit(CONST.RUNTIME_BAD_OP_TYPES)
+            print_error(c, "Unexpected types.", CONST.RUNTIME_BAD_OP_TYPES)
     
     return instruction_counter+1
 
-
+# nastavení kódování na hodnotu v XML
 def xml_encoding_set(version, encoding, standalone):
     sys.stdout.reconfigure(encoding=encoding)
 
-
+# hlavní funkce
 def main():
-    #! try -> pro chybu 99 možná zkusit
     # test argumentů
     source_filename, input_filename = args_test()
 
@@ -684,12 +637,16 @@ def main():
 
     # procházím vstupní data a ukládám si je do datové struktury
     for tag in source_data:
+        tag = tag.replace("&quot;", "\\034")
+        tag = tag.replace("&amp;", "\\038")
+        tag = tag.replace("&apos;", "\\039")
+        tag = tag.replace("&lt;", "\\060")
+        tag = tag.replace("&gt;", "\\062")
         parser.Parse(tag)
 
     # pokud se v programu vůbec nevyskytuje tag program
     if (not program):
-        print("Error: Program element doesnt exist in this file.", file=sys.stderr)
-        exit(CONST.XML_UNEXPECTED_STRUCT)
+        print_error(None, "Program element doesnt exist in this file.", CONST.XML_UNEXPECTED_STRUCT)
 
     # seřazení příkazů podle orderu
     global commands
@@ -703,16 +660,14 @@ def main():
             last_ord = c["order"]
             if (c["command"] == "LABEL"):
                 if (list(filter(lambda var: var['name'] == c["arg1_value"], labels))):
-                    print(f"Error: Label redefinition => \"{c['arg1_value']}\".", file=sys.stderr)
-                    exit(CONST.SEM_CHECK)
+                    print_error(c, f"Label redefinition => \"{c['arg1_value']}\".", CONST.SEM_CHECK)
                 else:
                     label = {}
                     label["index"] = commands.index(c)
                     label["name"] = c["arg1_value"]
                     labels.append(label)
         else:
-            print("Error: Unexpected order number.", file=sys.stderr)
-            exit(CONST.XML_UNEXPECTED_STRUCT)
+            print_error(c, "Unexpected order number.", CONST.XML_UNEXPECTED_STRUCT)
 
     # interpretace příkazů
     global instruction_counter
@@ -724,10 +679,9 @@ def main():
     # ukončení
     exit(CONST.SUCCESS)
 
-
 if __name__ == '__main__':
+    # ošetření MemoryErroru
     try:
         main()
     except MemoryError:
-        print(f"Error: Internal error.", file=sys.stderr)
-        exit(CONST.INTERNAL)
+        print_error(None, "Internal error.", CONST.INTERNAL)

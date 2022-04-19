@@ -2,16 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Test results</title>
+<title>IPP tests results</title>
 <style>
         body {
             font-family: "Arial", sans-serif;
-            color: #2c3e50;
+            color: #000;
             background: #ecf0f1;
         }
 
         table, td {
-            border: 1px solid #2c3e50;
+            border: 1px solid #000;
         }
 
         table {
@@ -32,14 +32,18 @@
         }
 
         .green {
-            background-color: #2ecc71;
+            background-color: #61e89b;
         }
 
         .red {
-            background-color: #e74c3c;
+            background-color: #ff6657;
+        }
+        
+        .not-test {
+            background-color: #777;
         }
 
-        .newLine {
+        .new-line {
             white-space: pre-line;
         }
 
@@ -64,25 +68,25 @@
     </script>
 </head>
 <body>
-<h1>Test results</h1>
+<h1>IPP tests results</h1>
 <table>
 <tr>
-<td><h3>error_string_out_of_range</h3></td>
-<td class="red">parse.php<br>rc expected: 58 real: 255</td>
-<td>interpret.py<br>rc expected: - real: -</td>
-<td class="red">status fail</td>
+<td><h3>N&aacute;zev testu</h3></td>
+<td><h3>Parse.php</h3></td>
+<td><h3>Interpret.py</h3></td>
+<td><h3>Result</h3></td>
 </tr>
 <tr>
-<td><h3>read_test</h3></td>
-<td class="red">parse.php<br>rc expected: 0 real: 255</td>
-<td>interpret.py<br>rc expected: - real: -</td>
-<td class="red">status fail</td>
+<td><h3>stack_test</h3></td>
+<td class="not-test">parse.php<br>Return code expected: -1 got: -1</td>
+<td class="green">interpret.py<br>Return code expected: 0 got: 0</td>
+<td class="green">status ok</td>
 </tr>
 <tr>
-<td><h3>spec_example</h3></td>
-<td class="red">parse.php<br>rc expected: 0 real: 255</td>
-<td>interpret.py<br>rc expected: - real: -</td>
-<td class="red">status fail</td>
+<td><h3>write_test</h3></td>
+<td class="not-test">parse.php<br>Return code expected: -1 got: -1</td>
+<td class="green">interpret.py<br>Return code expected: 32 got: 32</td>
+<td class="green">status ok</td>
 </tr>
 </table>
 </body>

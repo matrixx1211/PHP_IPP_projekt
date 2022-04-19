@@ -1,17 +1,18 @@
 <?php
+
 /**
- * IPP 2018 project 2 - test lib file for checking parse.php and interpret.py
- * @file html.php
- * @author Jiri Jurica
+ * IPP 2022 projekt 2 - testovací soubor pro parser a interpret
+ * 
+ * @author Marek Bitomský
  */
 
-function htmlInit() {
+function htmlInit()
+{
     global $dom;
     global $table;
 
     $dom = new DOMDocument("1.0", "UTF-8");
-    $dom->formatOutput = true;  # Prettify output
-    $implementation = new DOMImplementation();
+    $dom->formatOutput = true;
 
     $html = $dom->createElement("html");
     $html->setAttribute("lang", "en");
@@ -22,17 +23,17 @@ function htmlInit() {
     $meta = $dom->createElement("meta");
     $meta->setAttribute("charset", "UTF-8");
     $head->appendChild($meta);
-    $title = $dom->createElement("title", "Test results");
+    $title = $dom->createElement("title", "IPP tests results");
     $head->appendChild($title);
     $style = $dom->createElement("style", '
         body {
             font-family: "Arial", sans-serif;
-            color: #2c3e50;
+            color: #000;
             background: #ecf0f1;
         }
 
         table, td {
-            border: 1px solid #2c3e50;
+            border: 1px solid #000;
         }
 
         table {
@@ -53,14 +54,18 @@ function htmlInit() {
         }
 
         .green {
-            background-color: #2ecc71;
+            background-color: #61e89b;
         }
 
         .red {
-            background-color: #e74c3c;
+            background-color: #ff6657;
+        }
+        
+        .not-test {
+            background-color: #777;
         }
 
-        .newLine {
+        .new-line {
             white-space: pre-line;
         }
 
@@ -88,23 +93,45 @@ function htmlInit() {
 
     $body = $dom->createElement("body");
     $html->appendChild($body);
-    $h1 = $dom->createElement("h1", "Test results");
+    $h1 = $dom->createElement("h1", "IPP tests results");
     $body->appendChild($h1);
     $table = $dom->createElement("table");
     $body->appendChild($table);
+
+    $tr = $dom->createElement("tr");
+    $table->appendChild($tr);
+    $td = $dom->createElement("td");
+    $tr->appendChild($td);
+    $h3 = $dom->createElement("h3", "Název testu");
+    $td->appendChild($h3);
+
+    $td = $dom->createElement("td");
+    $tr->appendChild($td);
+    $h3 = $dom->createElement("h3", "Parse.php");
+    $td->appendChild($h3);
+
+    $td = $dom->createElement("td");
+    $tr->appendChild($td);
+    $h3 = $dom->createElement("h3", "Interpret.py");
+    $td->appendChild($h3);
+
+    $td = $dom->createElement("td");
+    $tr->appendChild($td);
+    $h3 = $dom->createElement("h3", "Result");
+    $td->appendChild($h3);
 }
 
-function addTest($data) {
+function addTest($data)
+{
     global $dom;
     global $table;
+
     $error = 0;
     $diff = 0;
     $out = 0;
 
-    #$dom = new DOMDocument("1.0", "UTF-8"); #!!!!!!!!!!!!!!
-    #$table = $dom->createElement("table");
 
-    # Create cell with name of test
+    // vytvoření buňky s názvem testu
     $tr = $dom->createElement("tr");
     $table->appendChild($tr);
     $td = $dom->createElement("td");
@@ -112,10 +139,10 @@ function addTest($data) {
     $h3 = $dom->createElement("h3", $data['name']);
     $td->appendChild($h3);
 
-    # Cell with parse.php status
-    $firstTextRow = $dom->createTextNode("parse.php");
+    // vytvoření buňky se stavem testu skriptu parse.php
+    $first_text_row = $dom->createTextNode("parse.php");
     $br = $dom->createElement("br");
-    $secondTextRow = $dom->createTextNode("rc expected: " . $data["parseExcRC"] . " real: " .
+    $second_text_row = $dom->createTextNode("Return code expected: " . $data["parseExcRC"] . " got: " .
         $data["parseRealRC"]);
 
     $td = $dom->createElement("td");
@@ -125,35 +152,40 @@ function addTest($data) {
         $td->setAttribute("class", "red");
         $error = 1;
     }
+    if ($data["parseExcRC"] == -1) {
+        $td->setAttribute("class", "not-test");
+    }
 
-    $td->appendChild($firstTextRow);
+    $td->appendChild($first_text_row);
     $td->appendChild($br);
-    $td->appendChild($secondTextRow);
+    $td->appendChild($second_text_row);
     $tr->appendChild($td);
 
-    # Cell with interpret.py status
+    // vytvoření buňky se stavem testu skriptu interpret.py
     $td = $dom->createElement("td");
     $br = $dom->createElement("br");
-    $firstTextRow = $dom->createTextNode("interpret.py");
+    $first_text_row = $dom->createTextNode("interpret.py");
 
-    if (!$error && !$data["parseRealRC"]) {
-        $secondTextRow = $dom->createTextNode("rc expected: " . $data["intExcRC"] . " real: "
+    if (!$error) {
+        $second_text_row = $dom->createTextNode("Return code expected: " . $data["intExcRC"] . " got: "
             . $data["intRealRC"]);
-        if ($data["intExcRC"] == $data["intRealRC"]) $td->setAttribute("class", "green");
+        if ($data["intExcRC"] == $data["intRealRC"])
+            $td->setAttribute("class", "green");
         else {
             $td->setAttribute("class", "red");
             $error = 1;
         }
-    }
-    else $secondTextRow = $dom->createTextNode("rc expected: - real: -");
+        if ($data["intExcRC"] == -1)
+            $td->setAttribute("class", "not-test");
+    } else $second_text_row = $dom->createTextNode("Return code expected: - got: -");
 
-    $td->appendChild($firstTextRow);
+    $td->appendChild($first_text_row);
     $td->appendChild($br);
-    $td->appendChild($secondTextRow);
+    $td->appendChild($second_text_row);
     $tr->appendChild($td);
 
-    # Cell with complete test status
-    if (!$error && !$data["parseRealRC"] && !$data["intRealRC"]) {
+    // vytvoření buňky se stavem testů
+    if (!$error && !$data["intRealRC"]) {
         if ($data['diff'] != "") {
             $diff = 1;
             $out = 1;
@@ -164,14 +196,13 @@ function addTest($data) {
     if ($error) {
         $td = $dom->createElement("td", "status fail");
         $td->setAttribute("class", "red");
-    }
-    else {
+    } else {
         $td = $dom->createElement("td", "status ok");
         $td->setAttribute("class", "green");
     }
     $tr->appendChild($td);
 
-    # Row with output
+    // řádek s výstupy
     if ($out) {
         $tr = $dom->createElement("tr");
         $table->appendChild($tr);
@@ -180,7 +211,7 @@ function addTest($data) {
         $td = $dom->createElement("td");
         $td->setAttribute("colspan", "3");
         $div = $dom->createElement("div");
-        $div->setAttribute("class", "newLine toggle");
+        $div->setAttribute("class", "new-line toggle");
         $td->appendChild($div);
         $a = $dom->createElement("a", "SHOW MORE +");
         $a->setAttribute("link", "#");
@@ -194,7 +225,7 @@ function addTest($data) {
         $tr->appendChild($td);
     }
 
-    # Row with diff
+    // řádek s diffem
     if ($diff) {
         $tr = $dom->createElement("tr");
         $table->appendChild($tr);
@@ -203,7 +234,7 @@ function addTest($data) {
         $td = $dom->createElement("td");
         $td->setAttribute("colspan", "3");
         $div = $dom->createElement("div");
-        $div->setAttribute("class", "newLine toggle");
+        $div->setAttribute("class", "new-line toggle");
         $td->appendChild($div);
         $a = $dom->createElement("a", "SHOW MORE +");
         $a->setAttribute("link", "#");
@@ -218,10 +249,9 @@ function addTest($data) {
     }
 }
 
-/**Prints message on stderr if global var is set to true
- * @param $message
- */
-function printLog($message) {
-    global $verbose;
-    if ($verbose) fwrite(STDERR, $message);
+// vypisuje debug log
+function logger($message)
+{
+    global $debug;
+    if ($debug) fwrite(STDERR, $message);
 }

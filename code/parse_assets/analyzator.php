@@ -214,11 +214,13 @@ class Analyzator
 			$len = strlen($var_or_symb);
 			// před @ nic
 			if ($at_pos == 0) {
+				fprintf(STDERR, $var_or_symb);
 				fprintf(STDERR, "Lexical error: expected something before \"@\", but get nothing.\n");
 				exit(LEXSYN_ERROR);
 			}
 			// za @ nic
-			if (($len - 1) == $at_pos) {
+			if (($len - 1) == $at_pos && !str_contains($var_or_symb, "string@")) {
+				fprintf(STDERR, $var_or_symb);
 				fprintf(STDERR, "Lexical error: expected something after \"@\", but get nothing.\n");
 				exit(LEXSYN_ERROR);
 			}
@@ -266,7 +268,7 @@ class Analyzator
 					}
 					// pokud se jedná o string
 					if ($before_at == "string") {
-						if ($after_at == 0 || $after_at == '0')
+						if ($after_at == 0 || $after_at == '0' || $after_at == "")
 							$after_at .= "\0";
 					}
 					array_push($return, $before_at);
